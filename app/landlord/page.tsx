@@ -1,12 +1,12 @@
 import { createServerSupabaseClient } from "@/lib/supabase/server"
 import { PageHeader } from "@/components/ui/page-header"
-import { StatCard } from "@/components/ui/stat-card"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { StatusBadge } from "@/components/ui/status-badge"
 import { formatCurrency } from "@/lib/utils/format"
-import { Building2, Users, Receipt, CreditCard } from "lucide-react"
+import { Receipt } from "lucide-react"
 import Link from "next/link"
+import { LandlordStats } from "./components/landlord-stats"
 
 async function getLandlordStats(supabase: any, workspaceId: string) {
   const [
@@ -92,37 +92,12 @@ export default async function LandlordDashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Properties"
-          titleFil="Mga Ari-arian"
-          value={stats.propertiesCount}
-          icon={Building2}
-          href="/landlord/properties"
-        />
-        <StatCard
-          title="Units"
-          titleFil="Mga Unit"
-          value={stats.unitsCount}
-          icon={Building2}
-          href="/landlord/properties"
-        />
-        <StatCard
-          title="Active Tenants"
-          titleFil="Aktibong Nangungupahan"
-          value={stats.tenantsCount}
-          icon={Users}
-          href="/landlord/tenants"
-        />
-        <StatCard
-          title="Pending Payments"
-          titleFil="Naghihintay na Bayad"
-          value={stats.pendingPayments.length}
-          icon={CreditCard}
-          variant={stats.pendingPayments.length > 0 ? "warning" : "default"}
-          href="/landlord/payments?status=pending"
-        />
-      </div>
+      <LandlordStats
+        propertiesCount={stats.propertiesCount}
+        unitsCount={stats.unitsCount}
+        tenantsCount={stats.tenantsCount}
+        pendingPaymentsCount={stats.pendingPayments.length}
+      />
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

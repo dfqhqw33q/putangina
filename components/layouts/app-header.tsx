@@ -1,7 +1,7 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { useState } from "react"
+import { signOut } from "@/app/auth/actions"
 import { useSidebar } from "./sidebar-provider"
 import { Button } from "@/components/ui/button"
 import {
@@ -13,7 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Bell, LogOut, Menu, Settings, User } from "lucide-react"
+import { Bell, LogOut, Menu, Settings, User, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 interface AppHeaderProps {
   user: {
@@ -27,13 +28,19 @@ interface AppHeaderProps {
 }
 
 export function AppHeader({ user, title, titleFilipino }: AppHeaderProps) {
-  const router = useRouter()
   const { toggle, isMobile, isCollapsed } = useSidebar()
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleSignOut = async () => {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push("/auth/login")
+    try {
+      setIsLoggingOut(true)
+      toast.loading("Logging out...")
+      await signOut()
+    } catch (error) {
+      console.error("Logout error:", error)
+      toast.error("Failed to log out")
+      setIsLoggingOut(false)
+    }
   }
 
   const initials = user.fullName
@@ -101,9 +108,18 @@ export function AppHeader({ user, title, titleFilipino }: AppHeaderProps) {
             <span>Settings / Mga Setting</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Log out / Mag-logout</span>
+          <DropdownMenuItem onClick={handleSignOut} className="text-red-600 focus:text-red-600" disabled={isLoggingOut}>
+            {isLoggingOut ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span>Logging out...</span>
+              </>
+            ) : (
+              <>
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out / Mag-logout</span>
+              </>
+            )}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

@@ -92,6 +92,8 @@ export async function createLandlordWithWorkspace(input: CreateLandlordInput) {
         address: input.address,
         contact_email: input.contactEmail || input.email,
         contact_phone: input.contactPhone || input.phone,
+        is_active: true,
+        billing_status: "active",
       })
       .select()
 
@@ -104,6 +106,54 @@ export async function createLandlordWithWorkspace(input: CreateLandlordInput) {
     }
 
     console.log("Workspace created:", workspaceResult)
+
+    // 4. Get workspace ID (if insert with select didn't return it, fetch it)
+    let workspaceId = workspaceResult?.[0]?.id
+    
+    console.log("WorkspaceResult:", { workspaceResult, length: workspaceResult?.length })
+    
+    if (!workspaceId) {
+      // Query for the workspace by slug if we couldn't get it from insert
+      console.log("Fetching workspace by slug:", { slug: input.workspaceSlug, owner_id: userId })
+      const { data: wsData, error: wsError } = await supabase
+        .from("workspaces")
+        .select("id")
+        .eq("slug", input.workspaceSlug)
+        .eq("owner_id", userId)
+        .single()
+      
+      console.log("Workspace fetch result:", { wsData, wsError })
+      
+      if (wsError) {
+        console.error("Failed to retrieve workspace:", wsError)
+        throw new Error(`Failed to retrieve workspace: ${wsError.message}`)
+      }
+      
+      workspaceId = wsData?.id
+    }
+    
+    console.log("Final WorkspaceId for workspace_members:", workspaceId)
+    
+    if (workspaceId) {
+      const { data: memberResult, error: memberError } = await supabase
+        .from("workspace_members")
+        .insert({
+          workspace_id: workspaceId,
+          user_id: userId,
+          role: "owner",
+        })
+        .select()
+
+      console.log("Workspace member created:", { memberResult, memberError })
+
+      if (memberError && !memberError.message.includes("duplicate")) {
+        console.error("Workspace member error:", memberError)
+        throw new Error(`Failed to add landlord to workspace: ${memberError.message}`)
+      }
+    } else {
+      console.warn("No workspace ID found, workspace_members not created")
+      throw new Error("Could not create workspace_members entry")
+    }
 
     return {
       success: true,
