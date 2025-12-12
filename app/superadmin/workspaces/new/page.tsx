@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { createLandlordWithWorkspace } from "./actions"
 import { PageHeader } from "@/components/ui/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -48,97 +48,25 @@ export default function NewWorkspacePage() {
     setIsLoading(true)
     setError(null)
 
-    const supabase = createClient()
-
     try {
-      // 1. Create auth user for landlord (admin creates, no email confirmation needed)
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      const result = await createLandlordWithWorkspace({
         email: landlordEmail,
         password: landlordPassword,
-        email_confirm: true,
-        user_metadata: {
-          full_name: landlordName,
-          role: "landlord",
-        },
+        fullName: landlordName,
+        phone: landlordPhone,
+        workspaceName,
+        workspaceSlug,
+        workspaceType,
+        planType,
+        unitCap,
+        address,
+        contactEmail: contactEmail || landlordEmail,
+        contactPhone: contactPhone || landlordPhone,
       })
 
-      if (authError) {
-        // Fallback: use regular signup if admin API not available
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: landlordEmail,
-          password: landlordPassword,
-          options: {
-            data: {
-              full_name: landlordName,
-              role: "landlord",
-            },
-            emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || window.location.origin,
-          },
-        })
-
-        if (signUpError) throw signUpError
-
-        if (!signUpData.user) {
-          throw new Error("Failed to create user account")
-        }
-
-        // Create profile manually since trigger might not fire without confirmation
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: signUpData.user.id,
-          email: landlordEmail,
-          full_name: landlordName,
-          phone: landlordPhone,
-          role: "landlord",
-          is_active: true,
-        })
-
-        if (profileError) throw profileError
-
-        // Create workspace
-        const { error: workspaceError } = await supabase.from("workspaces").insert({
-          owner_id: signUpData.user.id,
-          name: workspaceName,
-          slug: workspaceSlug,
-          workspace_type: workspaceType,
-          plan_type: planType,
-          unit_cap: unitCap,
-          address,
-          contact_email: contactEmail || landlordEmail,
-          contact_phone: contactPhone || landlordPhone,
-        })
-
-        if (workspaceError) throw workspaceError
-      } else {
-        if (!authData.user) {
-          throw new Error("Failed to create user account")
-        }
-
-        // Create profile
-        const { error: profileError } = await supabase.from("profiles").insert({
-          id: authData.user.id,
-          email: landlordEmail,
-          full_name: landlordName,
-          phone: landlordPhone,
-          role: "landlord",
-          is_active: true,
-        })
-
-        if (profileError) throw profileError
-
-        // Create workspace
-        const { error: workspaceError } = await supabase.from("workspaces").insert({
-          owner_id: authData.user.id,
-          name: workspaceName,
-          slug: workspaceSlug,
-          workspace_type: workspaceType,
-          plan_type: planType,
-          unit_cap: unitCap,
-          address,
-          contact_email: contactEmail || landlordEmail,
-          contact_phone: contactPhone || landlordPhone,
-        })
-
-        if (workspaceError) throw workspaceError
+      if (!result.success) {
+        setError(result.message)
+        return
       }
 
       toast.success("Workspace created successfully! / Matagumpay na nalikha ang workspace!")
