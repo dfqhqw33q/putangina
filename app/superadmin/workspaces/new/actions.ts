@@ -61,40 +61,28 @@ export async function createLandlordWithWorkspace(input: CreateLandlordInput) {
       throw new Error("Could not determine user ID")
     }
 
-    // 2. Check if profile already exists
-    const { data: existingProfile } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("id", userId)
-      .single()
-
-    if (!existingProfile) {
-      // Create profile only if it doesn't exist
-      const { error: profileError } = await supabase.from("profiles").insert({
-        id: userId,
-        email: input.email,
-        full_name: input.fullName,
-        phone: input.phone,
-        role: "landlord",
-        is_active: true,
-      })
-
-      if (profileError) {
-        throw new Error(`Failed to create profile: ${profileError.message}`)
+    // 2. Call RPC function to create/update landlord profile
+    const { data: profileResult, error: profileError } = await supabase.rpc(
+      "create_landlord_profile",
+      {
+        p_user_id: userId,
+        p_email: input.email,
+        p_full_name: input.fullName,
+        p_phone: input.phone,
       }
+    )
+
+    if (profileError) {
+      console.error("Profile RPC error:", profileError)
+      throw new Error(`Failed to create landlord profile: ${profileError.message}`)
     }
 
-    // 3. Check if workspace already exists for this owner
-    const { data: existingWorkspace } = await supabase
-      .from("workspaces")
-      .select("id")
-      .eq("owner_id", userId)
-      .eq("slug", input.workspaceSlug)
-      .single()
+    console.log("Profile created via RPC:", profileResult)
 
-    if (!existingWorkspace) {
-      // Create workspace only if it doesn't exist
-      const { error: workspaceError } = await supabase.from("workspaces").insert({
+    // 3. Create workspace
+    const { data: workspaceResult, error: workspaceError } = await supabase
+      .from("workspaces")
+      .insert({
         owner_id: userId,
         name: input.workspaceName,
         slug: input.workspaceSlug,
@@ -105,11 +93,17 @@ export async function createLandlordWithWorkspace(input: CreateLandlordInput) {
         contact_email: input.contactEmail || input.email,
         contact_phone: input.contactPhone || input.phone,
       })
+      .select()
 
-      if (workspaceError) {
+    if (workspaceError) {
+      console.error("Workspace error:", workspaceError)
+      // If workspace already exists with this slug, don't fail - it's okay
+      if (!workspaceError.message.includes("duplicate")) {
         throw new Error(`Failed to create workspace: ${workspaceError.message}`)
       }
     }
+
+    console.log("Workspace created:", workspaceResult)
 
     return {
       success: true,

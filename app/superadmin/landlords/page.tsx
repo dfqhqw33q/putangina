@@ -18,7 +18,7 @@ import { formatDate } from "@/lib/utils/format"
 async function getLandlords() {
   const supabase = await createClient()
 
-  const { data: landlords } = await supabase
+  const { data: landlords, error: landlordError } = await supabase
     .from("profiles")
     .select(
       `
@@ -28,6 +28,10 @@ async function getLandlords() {
     )
     .eq("role", "landlord")
     .order("created_at", { ascending: false })
+
+  if (landlordError) {
+    console.error("Failed to fetch landlords:", landlordError)
+  }
 
   return landlords || []
 }
